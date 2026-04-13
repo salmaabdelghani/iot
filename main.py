@@ -1,10 +1,8 @@
 from fastapi import FastAPI, File, UploadFile
-from deepface import DeepFace
 import shutil
 import os
 
 app = FastAPI()
-
 AUTHORIZED_DIR = "faces_db"
 
 @app.get("/")
@@ -13,11 +11,12 @@ def home():
 
 @app.post("/verify")
 async def verify_face(file: UploadFile = File(...)):
+    from deepface import DeepFace  # ← import ici, pas en haut
+
     test_image = "temp.jpg"
     with open(test_image, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
-    # Flat structure only: faces_db/image.jpg
     authorized_images = [
         os.path.join(AUTHORIZED_DIR, f)
         for f in os.listdir(AUTHORIZED_DIR)
@@ -39,9 +38,9 @@ async def verify_face(file: UploadFile = File(...)):
         print(f"Comparing with {img} → distance: {result['distance']}")
         if result["verified"]:
             os.remove(test_image)
-            print('ACCEPT')
+            print("✅ ACCEPT")
             return {"status": "ACCEPT"}
 
     os.remove(test_image)
-    print('DENY')
+    print("❌ DENY")
     return {"status": "DENY"}
