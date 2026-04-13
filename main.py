@@ -31,8 +31,8 @@ async def verify_face(file: UploadFile = File(...)):
         result = DeepFace.verify(
             img1_path=img,
             img2_path=test_image,
-            model_name="ArcFace",
-            detector_backend="retinaface",
+            model_name="Facenet",        # plus léger qu'ArcFace
+            detector_backend="opencv",   # beaucoup plus léger que retinaface
             enforce_detection=False
         )
         print(f"Comparing with {img} → distance: {result['distance']}")
