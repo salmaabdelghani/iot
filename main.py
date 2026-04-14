@@ -1,8 +1,6 @@
 from fastapi import FastAPI, File, UploadFile
-import face_recognition
 import shutil
 import os
-import numpy as np
 
 app = FastAPI()
 AUTHORIZED_DIR = "faces_db"
@@ -13,18 +11,11 @@ def home():
 
 @app.post("/verify")
 async def verify_face(file: UploadFile = File(...)):
+    from deepface import DeepFace  # ← import ici, pas en haut
+
     test_image = "temp.jpg"
     with open(test_image, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
-
-    test_img = face_recognition.load_image_file(test_image)
-    test_encodings = face_recognition.face_encodings(test_img)
-
-    if not test_encodings:
-        os.remove(test_image)
-        return {"status": "DENY", "reason": "No face detected"}
-
-    test_encoding = test_encodings[0]
 
     authorized_images = [
         os.path.join(AUTHORIZED_DIR, f)
@@ -32,14 +23,20 @@ async def verify_face(file: UploadFile = File(...)):
         if os.path.isfile(os.path.join(AUTHORIZED_DIR, f))
     ]
 
-    for img_path in authorized_images:
-        known_img = face_recognition.load_image_file(img_path)
-        known_encodings = face_recognition.face_encodings(known_img)
-        if not known_encodings:
-            continue
-        results = face_recognition.compare_faces([known_encodings[0]], test_encoding, tolerance=0.5)
-        print(f"Comparing with {img_path} → match: {results[0]}")
-        if results[0]:
+    if not authorized_images:
+        os.remove(test_image)
+        return {"status": "DENY", "reason": "No authorized faces found"}
+
+    for img in authorized_images:
+        result = DeepFace.verify(
+            img1_path=img,
+            img2_path=test_image,
+            model_name="Facenet",        # plus léger qu'ArcFace
+            detector_backend="opencv",   # beaucoup plus léger que retinaface
+            enforce_detection=False
+        )
+        print(f"Comparing with {img} → distance: {result['distance']}")
+        if result["verified"]:
             os.remove(test_image)
             print("✅ ACCEPT")
             return {"status": "ACCEPT"}
